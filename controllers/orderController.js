@@ -1,95 +1,88 @@
 const db = require("../config/db");
 
+// 📦 PLACE ORDER
 exports.placeOrder = async (req, res) => {
-    const userId = req.user.id;
-  
-    // 1. Get cart
-    const [[cart]] = await db.query(
-      "SELECT id FROM carts WHERE user_id=?",
+  const userId = req.user.id;
+
+  try {
+    const cartResult = await db.query(
+      "SELECT id FROM carts WHERE user_id = $1",
       [userId]
     );
-  
-    if (!cart) {
+
+    if (cartResult.rows.length === 0) {
       return res.status(400).json({ message: "Cart is empty" });
     }
-  
-    // 2. Get cart items
-    const [items] = await db.query(`
-      SELECT 
-        p.id,
-        p.price,
-        c.quantity
+
+    const cartId = cartResult.rows[0].id;
+
+    const itemsResult = await db.query(`
+      SELECT p.id, p.price, c.quantity
       FROM cart_items c
       JOIN products p ON c.product_id = p.id
-      WHERE c.cart_id = ?
-    `, [cart.id]);
-  
-    if (items.length === 0) {
+      WHERE c.cart_id = $1
+    `, [cartId]);
+
+    if (itemsResult.rows.length === 0) {
       return res.status(400).json({ message: "Cart is empty" });
     }
-  
-    // 3. Calculate total
+
     let total = 0;
-    items.forEach(item => {
+    itemsResult.rows.forEach(item => {
       total += item.price * item.quantity;
     });
-  
-    // 4. Create order
-    const [orderResult] = await db.query(
-      "INSERT INTO orders (user_id, total) VALUES (?, ?)",
+
+    const orderResult = await db.query(
+      "INSERT INTO orders (user_id, total) VALUES ($1, $2) RETURNING id",
       [userId, total]
     );
-  
-    const orderId = orderResult.insertId;
-  
-    // 5. Insert order items
-    for (let item of items) {
+
+    const orderId = orderResult.rows[0].id;
+
+    for (let item of itemsResult.rows) {
       await db.query(
-        "INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)",
+        "INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ($1, $2, $3, $4)",
         [orderId, item.id, item.quantity, item.price]
       );
     }
-  
-    // 6. Clear cart
-    await db.query("DELETE FROM cart_items WHERE cart_id=?", [cart.id]);
-  
-    res.status(201).json({
-      message: "Order placed successfully",
-      orderId
-    });
+
+    await db.query("DELETE FROM cart_items WHERE cart_id = $1", [cartId]);
+
+    res.status(201).json({ message: "Order placed successfully", orderId });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Order placement failed" });
+  }
 };
 
 exports.getMyOrders = async (req, res) => {
-    const userId = req.user.id;
-  
-    const [orders] = await db.query(
-      "SELECT * FROM orders WHERE user_id=? ORDER BY created_at DESC",
-      [userId]
-    );
-  
-    res.json(orders);
+  const userId = req.user.id;
+
+  const result = await db.query(
+    "SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC",
+    [userId]
+  );
+
+  res.json(result.rows);
 };
 
 exports.getAllOrders = async (req, res) => {
-    const [orders] = await db.query(
-      "SELECT * FROM orders ORDER BY created_at DESC"
-    );
-  
-    res.json(orders);
+  const result = await db.query(
+    "SELECT * FROM orders ORDER BY created_at DESC"
+  );
+
+  res.json(result.rows);
 };
 
 exports.updateOrderStatus = async (req, res) => {
-    const { id } = req.params;
-    const { status } = req.body;
-  
-    await db.query(
-      "UPDATE orders SET status=? WHERE id=?",
-      [status, id]
-    );
-  
-    res.json({ message: "Order status updated" });
-  };
-  
-  
-  
-  
+  const { id } = req.params;
+  const { status } = req.body;
+
+  await db.query(
+    "UPDATE orders SET status = $1 WHERE id = $2",
+    [status, id]
+  );
+
+  res.json({ message: "Order status updated" });
+};

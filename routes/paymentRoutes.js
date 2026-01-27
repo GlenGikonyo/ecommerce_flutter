@@ -3,13 +3,10 @@ const router = express.Router();
 const auth = require("../middleware/authMiddleware");
 const paymentController = require("../controllers/paymentController");
 
-// Initiate M-Pesa STK Push
-router.post("/mpesa", auth, paymentController.initiateMpesaPayment);
+// Initiate a payment
+router.post("/intasend/initiate", auth, paymentController.initiateIntaSendPayment);
 
-// M-Pesa callback URL (NO auth)
-router.post("/mpesa/callback", paymentController.mpesaCallback);
-
-// MOCK payment success (for demo/testing)
-router.post("/mpesa/mock-success", auth, paymentController.mockMpesaSuccess);
+// IntaSend webhook (no auth, IntaSend server calls this)
+router.post("/intasend/webhook", paymentController.handleIntaSendWebhook);
 
 module.exports = router;

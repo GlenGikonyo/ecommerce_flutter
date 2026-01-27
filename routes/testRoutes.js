@@ -1,33 +1,42 @@
 const express = require("express");
 const router = express.Router();
-const db = require("../config/db");
+const db = require("../config/db"); // MySQL or PostgreSQL pool
 const auth = require("../middleware/authMiddleware");
 const admin = require("../middleware/adminMiddleware");
 
+// 🔍 DATABASE HEALTH CHECK
 router.get("/db-test", async (req, res) => {
   try {
-    const [rows] = await db.query("SELECT 1 + 1 AS result");
-    res.json({
+    const result = await db.query("SELECT NOW()");
+
+    res.status(200).json({
       success: true,
-      message: "Database connected successfully",
-      result: rows[0].result,
+      message: "✅ Database connected successfully",
+      serverTime: result.rows[0].now,
     });
+
   } catch (error) {
-    console.error(error);
+    console.error("DB TEST ERROR:", error.message);
     res.status(500).json({
       success: false,
-      message: "Database connection failed",
+      message: "❌ Database connection failed",
+      error: error.message,
     });
   }
 });
 
+// 🔐 AUTH TEST
 router.get("/protected", auth, (req, res) => {
-    res.json({ message: "You are authenticated", user: req.user });
-});
-  
-router.get("/auth/admin-only", auth, admin, (req, res) => {
-    res.json({ message: "Welcome admin" });
+  res.json({
+    message: "You are authenticated",
+    user: req.user,
   });
-  
+});
+
+
+// 👑 ADMIN TEST
+router.get("/admin-only", auth, admin, (req, res) => {
+  res.json({ message: "Welcome admin" });
+});
 
 module.exports = router;
