@@ -28,9 +28,9 @@ exports.initiateIntaSendPayment = async (req, res) => {
       payload,
       {
         headers: {
-          Authorization: `Bearer ${API_KEY}`,
+          "X-IntaSend-Public-API-Key": process.env.INTASEND_PUBLISHABLE_KEY,
           "Content-Type": "application/json"
-        }
+        }        
       }
     );
 
