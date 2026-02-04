@@ -1,8 +1,8 @@
 const axios = require("axios");
 const db = require("../config/db");
 
-const BASE_URL = process.env.INTASEND_BASE_URL; // https://sandbox.intasend.com/api/
-const API_KEY = process.env.INTASEND_API_KEY;   // Your SECRET key
+const BASE_URL = process.env.INTASEND_BASE_URL; 
+const API_KEY = process.env.INTASEND_API_KEY;   
 
 exports.initiateIntaSendPayment = async (req, res) => {
   try {
