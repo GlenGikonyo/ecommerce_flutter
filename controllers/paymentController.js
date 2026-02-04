@@ -62,69 +62,69 @@ exports.initiateIntaSendPayment = async (req, res) => {
 
 exports.handleIntaSendWebhook = async (req, res) => {
   try {
-    console.log("IntaSend Webhook Payload:", JSON.stringify(req.body, null, 2));
+    console.log("🔥 IntaSend Webhook:", req.body);
 
-    // IntaSend sends different fields depending on the webhook type
-    const { 
-      invoice_id,           // Main transaction identifier
-      state,                // Payment state: COMPLETE, FAILED, PENDING
-      mpesa_reference,      // M-Pesa receipt number (e.g., QGX1234ABC)
-      api_ref,              // Your custom reference (ORDER-123-...)
+    const {
+      invoice_id,
+      state,               // COMPLETE, FAILED, PENDING
+      mpesa_reference,
+      api_ref,
       failed_reason,
-      value                 // Amount paid
+      value
     } = req.body;
 
     if (!invoice_id) {
-      console.error("Missing invoice_id in webhook payload");
-      return res.status(400).json({ error: "Invalid webhook payload" });
+      return res.status(400).json({ error: "Missing invoice_id" });
     }
 
-    // Map IntaSend states to your payment status
-    let paymentStatus = 'pending';
-    if (state === 'COMPLETE') {
-      paymentStatus = 'success';
-    } else if (state === 'FAILED') {
-      paymentStatus = 'failed';
-    }
-
-    // Update payment record
-    const updateResult = await db.query(
-      "UPDATE payments SET mpesa_receipt = $1 WHERE checkout_request_id = $2 RETURNING order_id",
-      [mpesa_reference || failed_reason || state, invoice_id]
+    // 1️⃣ Update payment record
+    const paymentResult = await db.query(
+      `UPDATE payments 
+       SET status = $1,
+           mpesa_receipt = $2,
+           updated_at = NOW()
+       WHERE checkout_request_id = $3
+       RETURNING order_id`,
+      [
+        state === "COMPLETE" ? "success" :
+        state === "FAILED" ? "failed" : "pending",
+        mpesa_reference || failed_reason || state,
+        invoice_id
+      ]
     );
 
-    if (updateResult.rows.length === 0) {
-      console.warn(`No payment found for checkout_request_id: ${invoice_id}`);
-      return res.status(404).json({ error: "Payment not found" });
+    if (paymentResult.rows.length === 0) {
+      console.log("⚠️ Payment not found:", invoice_id);
+      return res.sendStatus(200);
     }
 
-    const orderId = updateResult.rows[0].order_id;
+    const orderId = paymentResult.rows[0].order_id;
 
-    // Update order status if payment is successful
-    if (state === 'COMPLETE') {
+    // 2️⃣ Update order based on payment
+    if (state === "COMPLETE") {
       await db.query(
-        "UPDATE orders SET payment_status = 'paid' WHERE id = $1",
+        `UPDATE orders 
+         SET payment_status = 'paid', order_status = 'processing'
+         WHERE id = $1`,
         [orderId]
       );
-      console.log(`Order ${orderId} marked as paid. M-Pesa Receipt: ${mpesa_reference}`);
-    } else if (state === 'FAILED') {
-      await db.query(
-        "UPDATE orders SET payment_status = 'failed' WHERE id = $1",
-        [orderId]
-      );
-      console.log(`Order ${orderId} payment failed. Reason: ${failed_reason}`);
+      console.log(`✅ Order ${orderId} marked PAID`);
     }
 
-    return res.status(200).json({ 
-      received: true,
-      message: "Webhook processed successfully" 
-    });
+    if (state === "FAILED") {
+      await db.query(
+        `UPDATE orders 
+         SET payment_status = 'failed'
+         WHERE id = $1`,
+        [orderId]
+      );
+      console.log(`❌ Order ${orderId} payment FAILED`);
+    }
+
+    res.sendStatus(200);
 
   } catch (err) {
-    console.error("Webhook processing error:", err);
-    return res.status(500).json({ 
-      message: "Webhook processing failed",
-      error: err.message 
-    });
+    console.error("Webhook error:", err.message);
+    res.sendStatus(500);
   }
 };
