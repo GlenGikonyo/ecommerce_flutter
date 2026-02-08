@@ -1,7 +1,7 @@
 const axios = require("axios");
 const db = require("../config/db");
 
-const BASE_URL = process.env.INTASEND_BASE_URL; // Should be https://payment.intasend.com
+const BASE_URL = process.env.INTASEND_BASE_URL; 
 const API_KEY = process.env.INTASEND_API_KEY;   
 
 exports.initiateIntaSendPayment = async (req, res) => {
@@ -20,23 +20,22 @@ exports.initiateIntaSendPayment = async (req, res) => {
       email: email,
       phone_number: phone,
       api_ref: apiRef,
-      redirect_url: `${process.env.BACKEND_URL}/payment-success`,
+      redirect_url: `${process.env.BACKEND_URL}/payment-success`, // where user goes after payment
     };
 
-    // ✅ FIXED: Correct endpoint and authentication
     const response = await axios.post(
-      `${BASE_URL}/api/v1/checkout/`,  // Added /api/
+      `${BASE_URL}v1/checkout/`,
       payload,
       {
         headers: {
-          "Authorization": `Bearer ${API_KEY}`,  // Use secret key, not publishable
+          "X-IntaSend-Public-API-Key": process.env.INTASEND_PUBLISHABLE_KEY,
           "Content-Type": "application/json"
         }        
       }
     );
 
-    const checkoutUrl = response.data.url;
-    const invoiceId = response.data.invoice?.invoice_id || response.data.id;
+    const checkoutUrl = response.data.url;          // 🔥 PAYMENT LINK
+    const invoiceId   = response.data.invoice?.invoice_id;
 
     // Save pending payment
     await db.query(
