@@ -24,7 +24,7 @@ exports.initiateIntaSendPayment = async (req, res) => {
     };
 
     const response = await axios.post(
-      `${BASE_URL}/v1/checkout/`,
+      `${BASE_URL}/api/v1/checkout/`,
       payload,
       {
         headers: {
