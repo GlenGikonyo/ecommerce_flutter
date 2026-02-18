@@ -1,7 +1,7 @@
 const axios = require("axios");
 const db = require("../config/db");
 
-const BASE_URL = process.env.INTASEND_BASE_URL; 
+// const BASE_URL = process.env.INTASEND_BASE_URL; 
 const API_KEY = process.env.INTASEND_API_KEY;   
 
 exports.initiateIntaSendPayment = async (req, res) => {
@@ -24,7 +24,7 @@ exports.initiateIntaSendPayment = async (req, res) => {
     };
 
     const response = await axios.post(
-      `${BASE_URL}/api/v1/checkout/`,
+      'https://sandbox.intasend.com/api/v1/checkout/',
       payload,
       {
         headers: {
