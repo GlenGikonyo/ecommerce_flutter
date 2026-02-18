@@ -24,7 +24,7 @@ exports.initiateIntaSendPayment = async (req, res) => {
     };
 
     const response = await axios.post(
-      `${BASE_URL}v1/checkout/`,
+      `${BASE_URL}/v1/checkout/`,
       payload,
       {
         headers: {
@@ -51,7 +51,7 @@ exports.initiateIntaSendPayment = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Checkout Error:", err.response?.data || err.message);
+    console.error("Checkout Error FULL:", err);
     res.status(500).json({
       message: "Failed to create checkout link",
       error: err.response?.data || err.message
